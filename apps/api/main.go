@@ -13,8 +13,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/aws-sdk-go-v2/service/sqs"
 
+	"github.com/wbach/cs-analyser/apps/api/internal/admin"
 	"github.com/wbach/cs-analyser/apps/api/internal/auth"
 	"github.com/wbach/cs-analyser/apps/api/internal/config"
+	"github.com/wbach/cs-analyser/apps/api/internal/db"
+	"github.com/wbach/cs-analyser/apps/api/internal/players"
 	"github.com/wbach/cs-analyser/apps/api/internal/upload"
 	"github.com/wbach/cs-analyser/apps/api/internal/veto"
 )
@@ -28,7 +31,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	awsCfg, err := awsconfig.LoadDefaultConfig(context.Background(), awsconfig.WithRegion(cfg.Region))
+	ctx := context.Background()
+
+	awsCfg, err := awsconfig.LoadDefaultConfig(ctx, awsconfig.WithRegion(cfg.Region))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -37,11 +42,27 @@ func main() {
 	uploader := manager.NewUploader(s3Client)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 
+	pool, err := db.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer pool.Close()
+
+	if err := db.EnsureSchema(ctx, pool); err != nil {
+		log.Fatal(err)
+	}
+
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
 	vetoManager := veto.NewManager()
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/whoami", whoamiHandler)
+	adminMux.HandleFunc("GET /admin/users", admin.NewUsersHandler(pool))
+	adminMux.HandleFunc("GET /admin/queue-size", admin.NewQueueSizeHandler(sqsClient, cfg.QueueURL))
+	adminMux.HandleFunc("GET /admin/maps", admin.NewListMapsHandler(pool))
+	adminMux.HandleFunc("POST /admin/maps", admin.NewCreateMapHandler(pool))
+	adminMux.HandleFunc("PUT /admin/maps/{id}", admin.NewUpdateMapHandler(pool))
+	adminMux.HandleFunc("DELETE /admin/maps/{id}", admin.NewDeleteMapHandler(pool))
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
@@ -51,6 +72,7 @@ func main() {
 	mux.HandleFunc("/auth/login", auth.NewLoginHandler(cfg.JWTSecret, cfg.AdminUsername, cfg.AdminPasswordHash, adminTokenTTL))
 	mux.HandleFunc("/veto/sessions", veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL))
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigin))
+	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
 
 	handler := auth.CORS(cfg.AllowedOrigin)(mux)

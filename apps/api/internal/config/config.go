@@ -14,6 +14,7 @@ type Config struct {
 	AdminUsername     string
 	AdminPasswordHash string
 	AllowedOrigin     string
+	DatabaseURL       string
 }
 
 func Load() (Config, error) {
@@ -26,6 +27,7 @@ func Load() (Config, error) {
 		AdminUsername:     os.Getenv("ADMIN_USERNAME"),
 		AdminPasswordHash: os.Getenv("ADMIN_PASSWORD_HASH"),
 		AllowedOrigin:     os.Getenv("ALLOWED_ORIGIN"),
+		DatabaseURL:       os.Getenv("DATABASE_URL"),
 	}
 
 	if cfg.Region == "" {
@@ -48,6 +50,9 @@ func Load() (Config, error) {
 	}
 	if cfg.AllowedOrigin == "" {
 		return Config{}, fmt.Errorf("ALLOWED_ORIGIN is required")
+	}
+	if cfg.DatabaseURL == "" {
+		return Config{}, fmt.Errorf("DATABASE_URL is required")
 	}
 
 	return cfg, nil
