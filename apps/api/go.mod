@@ -1,6 +1,6 @@
 module github.com/wbach/cs-analyser/apps/api
 
-go 1.24
+go 1.25.0
 
 require (
 	github.com/aws/aws-sdk-go-v2 v1.42.1
@@ -8,8 +8,10 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.45.1
+	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/websocket v1.5.3
+	golang.org/x/crypto v0.54.0
 )
 
 require (
