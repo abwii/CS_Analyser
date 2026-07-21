@@ -5,6 +5,9 @@ build
 
 apps/web/dist
 apps/web/node_modules
+apps/web/.env
+apps/web/.env.local
+apps/web/tsconfig.tsbuildinfo
 
 apps/api/bin
 
