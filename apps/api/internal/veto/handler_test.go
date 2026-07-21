@@ -92,6 +92,9 @@ func TestWebSocketBroadcastsStateToAllClients(t *testing.T) {
 	if initialA.CurrentTurn != "A" || initialB.CurrentTurn != "A" {
 		t.Fatalf("expected initial turn to be A for both clients, got %s and %s", initialA.CurrentTurn, initialB.CurrentTurn)
 	}
+	if initialA.NextAction != ActionBan {
+		t.Fatalf("expected next action to be ban, got %s", initialA.NextAction)
+	}
 
 	action := ActionRequest{Team: "A", Action: ActionBan, Map: "m1"}
 	payload, err := json.Marshal(action)
