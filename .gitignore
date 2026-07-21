@@ -13,5 +13,6 @@ apps/api/bin
 apps/api/.env
 
 apps/parser/target
+apps/parser/.env
 
 perso.txt
