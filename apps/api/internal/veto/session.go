@@ -59,6 +59,7 @@ func newSession(format Format, teamA, teamB string, maps []string) (*Session, er
 
 func (s *Session) finalizeIfDone() {
 	if s.stepIndex < len(s.sequence) {
+		s.state.NextAction = s.sequence[s.stepIndex]
 		return
 	}
 	if len(s.state.AvailableMaps) == 1 {
@@ -66,6 +67,7 @@ func (s *Session) finalizeIfDone() {
 	}
 	s.state.Completed = true
 	s.state.CurrentTurn = ""
+	s.state.NextAction = ""
 }
 
 func (s *Session) ID() uuid.UUID {

@@ -21,3 +21,27 @@ export interface CompetitiveMap {
 export interface QueueSize {
   size: number
 }
+
+export type VetoFormat = 'BO1' | 'BO3'
+
+export type VetoActionType = 'ban' | 'pick'
+
+export interface VetoEntry {
+  team: string
+  map: string
+  action: VetoActionType
+}
+
+export interface VetoState {
+  sessionId: string
+  format: VetoFormat
+  teamA: string
+  teamB: string
+  availableMaps: string[]
+  currentTurn: string
+  nextAction?: VetoActionType
+  history: VetoEntry[]
+  deciderMap?: string
+  completed: boolean
+}
+

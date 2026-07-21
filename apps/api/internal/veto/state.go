@@ -45,6 +45,7 @@ type State struct {
 	TeamB         string      `json:"teamB"`
 	AvailableMaps []string    `json:"availableMaps"`
 	CurrentTurn   string      `json:"currentTurn"`
+	NextAction    ActionType  `json:"nextAction,omitempty"`
 	History       []VetoEntry `json:"history"`
 	DeciderMap    string      `json:"deciderMap,omitempty"`
 	Completed     bool        `json:"completed"`
