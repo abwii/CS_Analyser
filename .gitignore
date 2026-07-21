@@ -10,6 +10,7 @@ apps/web/.env.local
 apps/web/tsconfig.tsbuildinfo
 
 apps/api/bin
+apps/api/.env
 
 apps/parser/target
 

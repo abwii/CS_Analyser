@@ -4,16 +4,13 @@ import (
 	"encoding/json"
 	"log"
 	"net/http"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
-)
 
-var upgrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-	CheckOrigin:     func(r *http.Request) bool { return true },
-}
+	"github.com/wbach/cs-analyser/apps/api/internal/auth"
+)
 
 type CreateSessionRequest struct {
 	Format Format   `json:"format"`
@@ -23,11 +20,12 @@ type CreateSessionRequest struct {
 }
 
 type CreateSessionResponse struct {
-	SessionID string `json:"sessionId"`
+	SessionID  string `json:"sessionId"`
+	TeamAToken string `json:"teamAToken"`
+	TeamBToken string `json:"teamBToken"`
 }
 
 type ActionRequest struct {
-	Team   string     `json:"team"`
 	Action ActionType `json:"action"`
 	Map    string     `json:"map"`
 }
@@ -36,7 +34,7 @@ type errorMessage struct {
 	Error string `json:"error"`
 }
 
-func NewCreateSessionHandler(manager *Manager) http.HandlerFunc {
+func NewCreateSessionHandler(manager *Manager, secret []byte, tokenTTL time.Duration) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodPost {
 			http.Error(w, "method not allowed", http.StatusMethodNotAllowed)
@@ -55,17 +53,41 @@ func NewCreateSessionHandler(manager *Manager) http.HandlerFunc {
 			return
 		}
 
+		sessionID := session.ID().String()
+
+		teamAToken, err := auth.NewVetoToken(secret, sessionID, req.TeamA, tokenTTL)
+		if err != nil {
+			log.Printf("failed to sign team token: %v", err)
+			http.Error(w, "failed to issue session tokens", http.StatusInternalServerError)
+			return
+		}
+		teamBToken, err := auth.NewVetoToken(secret, sessionID, req.TeamB, tokenTTL)
+		if err != nil {
+			log.Printf("failed to sign team token: %v", err)
+			http.Error(w, "failed to issue session tokens", http.StatusInternalServerError)
+			return
+		}
+
 		w.Header().Set("Content-Type", "application/json")
-		response := CreateSessionResponse{SessionID: session.ID().String()}
+		response := CreateSessionResponse{SessionID: sessionID, TeamAToken: teamAToken, TeamBToken: teamBToken}
 		if err := json.NewEncoder(w).Encode(response); err != nil {
 			log.Printf("failed to write create session response: %v", err)
 		}
 	}
 }
 
-func NewWebSocketHandler(manager *Manager) http.HandlerFunc {
+func NewWebSocketHandler(manager *Manager, secret []byte, allowedOrigin string) http.HandlerFunc {
+	upgrader := websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return r.Header.Get("Origin") == allowedOrigin
+		},
+	}
+
 	return func(w http.ResponseWriter, r *http.Request) {
-		sessionID, err := uuid.Parse(r.URL.Query().Get("sessionId"))
+		sessionIDParam := r.URL.Query().Get("sessionId")
+		sessionID, err := uuid.Parse(sessionIDParam)
 		if err != nil {
 			http.Error(w, "invalid session id", http.StatusBadRequest)
 			return
@@ -77,13 +99,19 @@ func NewWebSocketHandler(manager *Manager) http.HandlerFunc {
 			return
 		}
 
+		claims, err := auth.Parse(secret, r.URL.Query().Get("token"))
+		if err != nil || claims.Scope != auth.ScopeVeto || claims.SessionID != sessionIDParam {
+			http.Error(w, "invalid or missing session token", http.StatusUnauthorized)
+			return
+		}
+
 		conn, err := upgrader.Upgrade(w, r, nil)
 		if err != nil {
 			log.Printf("websocket upgrade failed: %v", err)
 			return
 		}
 
-		client := newClient(conn)
+		client := newClient(conn, claims.Team)
 		go client.writePump()
 
 		snapshot := session.AddClient(client)
@@ -101,7 +129,7 @@ func NewWebSocketHandler(manager *Manager) http.HandlerFunc {
 				continue
 			}
 
-			if err := session.ApplyAction(actionReq.Team, actionReq.Action, actionReq.Map); err != nil {
+			if err := session.ApplyAction(client.Team, actionReq.Action, actionReq.Map); err != nil {
 				sendError(client, err.Error())
 			}
 		}

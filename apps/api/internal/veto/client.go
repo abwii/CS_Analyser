@@ -12,13 +12,15 @@ type Client struct {
 	conn *websocket.Conn
 	send chan []byte
 	done chan struct{}
+	Team string
 }
 
-func newClient(conn *websocket.Conn) *Client {
+func newClient(conn *websocket.Conn, team string) *Client {
 	return &Client{
 		conn: conn,
 		send: make(chan []byte, sendBufferSize),
 		done: make(chan struct{}),
+		Team: team,
 	}
 }
 
