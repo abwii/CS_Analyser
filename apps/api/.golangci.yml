@@ -1,15 +1,29 @@
-run:
-  timeout: 5m
-
+version: "2"
 linters:
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - staticcheck
+        text: "SA1019: manager\\.(Uploader|NewUploader) is deprecated"
+    paths:
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
   enable:
-    - govet
-    - errcheck
-    - staticcheck
-    - unused
     - gofmt
     - goimports
-
-issues:
-  exclude-dirs:
-    - vendor
+  exclusions:
+    generated: lax
+    paths:
+      - vendor
+      - third_party$
+      - builtin$
+      - examples$

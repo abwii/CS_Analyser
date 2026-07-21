@@ -125,7 +125,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
-	w.Write(body)
+	if _, err := w.Write(body); err != nil {
+		log.Printf("failed to write response: %v", err)
+	}
 }
 
 func generateKey(filename string) (string, error) {
