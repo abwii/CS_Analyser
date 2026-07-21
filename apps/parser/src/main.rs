@@ -1,15 +1,9 @@
-mod config;
-mod db;
-mod demo;
-mod error;
-mod queue;
-mod storage;
-
 use aws_config::BehaviorVersion;
 use aws_sdk_s3::Client as S3Client;
 use aws_sdk_sqs::Client as SqsClient;
-use config::Config;
-use error::BoxError;
+use parser::config::Config;
+use parser::error::BoxError;
+use parser::{db, demo, queue, storage};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
