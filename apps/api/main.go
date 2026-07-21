@@ -13,6 +13,7 @@ import (
 
 	"github.com/wbach/cs-analyser/apps/api/internal/config"
 	"github.com/wbach/cs-analyser/apps/api/internal/upload"
+	"github.com/wbach/cs-analyser/apps/api/internal/veto"
 )
 
 func main() {
@@ -31,12 +32,15 @@ func main() {
 	sqsClient := sqs.NewFromConfig(awsCfg)
 
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
+	vetoManager := veto.NewManager()
 
 	mux := http.NewServeMux()
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "ok")
 	})
 	mux.Handle("/upload", uploadHandler)
+	mux.HandleFunc("/veto/sessions", veto.NewCreateSessionHandler(vetoManager))
+	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager))
 
 	addr := ":" + cfg.Port
 	log.Printf("listening on %s", addr)
