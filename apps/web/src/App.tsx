@@ -3,6 +3,7 @@ import { HomePage } from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import { VetoPage } from './pages/VetoPage'
 import { PlayerProfilePage } from './pages/PlayerProfilePage'
+import { ComparisonPage } from './pages/ComparisonPage'
 
 function App() {
   return (
@@ -12,6 +13,7 @@ function App() {
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/veto/:sessionId" element={<VetoPage />} />
         <Route path="/players/:playerId" element={<PlayerProfilePage />} />
+        <Route path="/compare/:playerAId/:playerBId" element={<ComparisonPage />} />
       </Routes>
     </BrowserRouter>
   )

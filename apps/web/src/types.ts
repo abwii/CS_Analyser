@@ -84,3 +84,26 @@ export interface PlayerProfile {
   positions: Point2D[]
 }
 
+export interface RadarPlayerData {
+  playerId: string
+  playerName: string
+  metrics: PlayerMetrics
+}
+
+export interface PlayerComparison {
+  playerA: RadarPlayerData
+  playerB: RadarPlayerData
+}
+
+export interface RadarAxisConfig {
+  key: keyof PlayerMetrics
+  label: string
+  min: number
+  max: number
+}
+
+export interface RadarPoint {
+  x: number
+  y: number
+}
+
