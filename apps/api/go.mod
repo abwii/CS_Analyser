@@ -8,6 +8,8 @@ require (
 	github.com/aws/aws-sdk-go-v2/feature/s3/manager v1.22.34
 	github.com/aws/aws-sdk-go-v2/service/s3 v1.105.2
 	github.com/aws/aws-sdk-go-v2/service/sqs v1.45.1
+	github.com/google/uuid v1.6.0
+	github.com/gorilla/websocket v1.5.3
 )
 
 require (
