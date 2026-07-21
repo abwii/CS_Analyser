@@ -22,6 +22,22 @@ jobs:
 
       - run: npm run lint --workspace web
 
+  test-web:
+    name: Test web (vitest)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: package-lock.json
+
+      - run: npm ci
+
+      - run: npm run test --workspace web
+
   lint-api:
     name: Lint api (golangci-lint)
     runs-on: ubuntu-latest

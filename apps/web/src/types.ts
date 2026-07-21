@@ -45,3 +45,42 @@ export interface VetoState {
   completed: boolean
 }
 
+export interface Point2D {
+  x: number
+  y: number
+}
+
+export interface WorldBounds {
+  minX: number
+  maxX: number
+  minY: number
+  maxY: number
+}
+
+export interface CanvasSize {
+  width: number
+  height: number
+}
+
+export interface PlayerMetrics {
+  kpr: number
+  dpr: number
+  kast: number
+  impact: number
+  adr: number
+}
+
+export interface PlayerMap {
+  name: string
+  imageUrl: string
+  bounds: WorldBounds
+}
+
+export interface PlayerProfile {
+  playerId: string
+  playerName: string
+  metrics: PlayerMetrics
+  map: PlayerMap
+  positions: Point2D[]
+}
+

@@ -2,6 +2,7 @@ import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { HomePage } from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
 import { VetoPage } from './pages/VetoPage'
+import { PlayerProfilePage } from './pages/PlayerProfilePage'
 
 function App() {
   return (
@@ -10,6 +11,7 @@ function App() {
         <Route path="/" element={<HomePage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/veto/:sessionId" element={<VetoPage />} />
+        <Route path="/players/:playerId" element={<PlayerProfilePage />} />
       </Routes>
     </BrowserRouter>
   )
