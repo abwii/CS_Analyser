@@ -3,14 +3,20 @@ use crate::error::BoxError;
 use crate::stats::PlayerStats;
 use sqlx::PgPool;
 
-pub async fn insert_demo(pool: &PgPool, bucket: &str, key: &str, data: &DemoData) -> Result<(), BoxError> {
+pub async fn insert_demo(pool: &PgPool, bucket: &str, key: &str, data: &DemoData) -> Result<i64, BoxError> {
     let players = serde_json::to_value(&data.players)?;
     let kills = serde_json::to_value(&data.kills)?;
 
-    sqlx::query(
+    let demo_id = sqlx::query_scalar::<_, i64>(
         "INSERT INTO demos (s3_bucket, s3_key, team_t_score, team_ct_score, winner, players, kills)
          VALUES ($1, $2, $3, $4, $5, $6, $7)
-         ON CONFLICT (s3_bucket, s3_key) DO NOTHING",
+         ON CONFLICT (s3_bucket, s3_key) DO UPDATE SET
+             team_t_score = EXCLUDED.team_t_score,
+             team_ct_score = EXCLUDED.team_ct_score,
+             winner = EXCLUDED.winner,
+             players = EXCLUDED.players,
+             kills = EXCLUDED.kills
+         RETURNING id",
     )
     .bind(bucket)
     .bind(key)
@@ -19,10 +25,10 @@ pub async fn insert_demo(pool: &PgPool, bucket: &str, key: &str, data: &DemoData
     .bind(&data.final_score.winner)
     .bind(players)
     .bind(kills)
-    .execute(pool)
+    .fetch_one(pool)
     .await?;
 
-    Ok(())
+    Ok(demo_id)
 }
 
 pub async fn insert_player_stats(pool: &PgPool, demo_id: i64, stats: &[PlayerStats]) -> Result<(), BoxError> {
