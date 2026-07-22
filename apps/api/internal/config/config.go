@@ -3,6 +3,8 @@ package config
 import (
 	"fmt"
 	"os"
+
+	"github.com/joho/godotenv"
 )
 
 type Config struct {
@@ -18,6 +20,8 @@ type Config struct {
 }
 
 func Load() (Config, error) {
+	_ = godotenv.Load()
+
 	cfg := Config{
 		Port:              getEnv("PORT", "8080"),
 		Region:            os.Getenv("AWS_REGION"),

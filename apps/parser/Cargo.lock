@@ -1950,6 +1950,7 @@ dependencies = [
  "aws-config",
  "aws-sdk-s3",
  "aws-sdk-sqs",
+ "dotenvy",
  "parser 0.1.1",
  "serde",
  "serde_json",

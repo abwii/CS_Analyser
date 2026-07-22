@@ -8,6 +8,7 @@ pub struct Config {
 
 impl Config {
     pub fn load() -> Result<Self, String> {
+        dotenvy::dotenv().ok();
         Ok(Self {
             aws_region: require_env("AWS_REGION")?,
             sqs_queue_url: require_env("SQS_QUEUE_URL")?,
