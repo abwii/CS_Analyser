@@ -21,7 +21,7 @@ func startTestServer(t *testing.T) (*httptest.Server, *Manager) {
 	manager := NewManager()
 	mux := http.NewServeMux()
 	mux.HandleFunc("/veto/sessions", NewCreateSessionHandler(manager, testSecret, testTokenTTL))
-	mux.HandleFunc("/veto/ws", NewWebSocketHandler(manager, testSecret, testAllowedOrigin))
+	mux.HandleFunc("/veto/ws", NewWebSocketHandler(manager, testSecret, []string{testAllowedOrigin}))
 
 	server := httptest.NewServer(mux)
 	t.Cleanup(server.Close)

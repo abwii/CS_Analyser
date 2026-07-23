@@ -76,12 +76,18 @@ func NewCreateSessionHandler(manager *Manager, secret []byte, tokenTTL time.Dura
 	}
 }
 
-func NewWebSocketHandler(manager *Manager, secret []byte, allowedOrigin string) http.HandlerFunc {
+func NewWebSocketHandler(manager *Manager, secret []byte, allowedOrigins []string) http.HandlerFunc {
+	allowed := make(map[string]struct{}, len(allowedOrigins))
+	for _, origin := range allowedOrigins {
+		allowed[origin] = struct{}{}
+	}
+
 	upgrader := websocket.Upgrader{
 		ReadBufferSize:  1024,
 		WriteBufferSize: 1024,
 		CheckOrigin: func(r *http.Request) bool {
-			return r.Header.Get("Origin") == allowedOrigin
+			_, ok := allowed[r.Header.Get("Origin")]
+			return ok
 		},
 	}
 

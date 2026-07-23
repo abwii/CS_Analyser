@@ -3,6 +3,7 @@ package config
 import (
 	"fmt"
 	"os"
+	"strings"
 
 	"github.com/joho/godotenv"
 )
@@ -13,8 +14,9 @@ type Config struct {
 	Bucket           string
 	QueueURL         string
 	JWTSecret        []byte
-	AllowedOrigin    string
+	AllowedOrigins   []string
 	DatabaseURL      string
+	RedisURL         string
 	S3ForcePathStyle bool
 }
 
@@ -27,8 +29,9 @@ func Load() (Config, error) {
 		Bucket:           os.Getenv("S3_BUCKET"),
 		QueueURL:         os.Getenv("SQS_QUEUE_URL"),
 		JWTSecret:        []byte(os.Getenv("JWT_SECRET")),
-		AllowedOrigin:    os.Getenv("ALLOWED_ORIGIN"),
+		AllowedOrigins:   parseOriginList(os.Getenv("ALLOWED_ORIGINS")),
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		RedisURL:         os.Getenv("REDIS_URL"),
 		S3ForcePathStyle: os.Getenv("S3_FORCE_PATH_STYLE") == "true",
 	}
 
@@ -44,14 +47,32 @@ func Load() (Config, error) {
 	if len(cfg.JWTSecret) < 32 {
 		return Config{}, fmt.Errorf("JWT_SECRET is required and must be at least 32 characters")
 	}
-	if cfg.AllowedOrigin == "" {
-		return Config{}, fmt.Errorf("ALLOWED_ORIGIN is required")
+	if len(cfg.AllowedOrigins) == 0 {
+		return Config{}, fmt.Errorf("ALLOWED_ORIGINS is required")
 	}
 	if cfg.DatabaseURL == "" {
 		return Config{}, fmt.Errorf("DATABASE_URL is required")
 	}
+	if cfg.RedisURL == "" {
+		return Config{}, fmt.Errorf("REDIS_URL is required")
+	}
 
 	return cfg, nil
+}
+
+func parseOriginList(raw string) []string {
+	if raw == "" {
+		return nil
+	}
+	parts := strings.Split(raw, ",")
+	origins := make([]string, 0, len(parts))
+	for _, part := range parts {
+		trimmed := strings.TrimSpace(part)
+		if trimmed != "" {
+			origins = append(origins, trimmed)
+		}
+	}
+	return origins
 }
 
 func getEnv(key, fallback string) string {
