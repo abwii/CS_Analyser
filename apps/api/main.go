@@ -44,15 +44,15 @@ func main() {
 	uploader := manager.NewUploader(s3Client)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 
+	if err := db.Migrate(cfg.DatabaseURL); err != nil {
+		log.Fatal(err)
+	}
+
 	pool, err := db.Connect(ctx, cfg.DatabaseURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer pool.Close()
-
-	if err := db.EnsureSchema(ctx, pool); err != nil {
-		log.Fatal(err)
-	}
 
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
 	vetoManager := veto.NewManager()
