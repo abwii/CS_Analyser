@@ -5,6 +5,8 @@ CREATE TABLE IF NOT EXISTS admin_users (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+ALTER TABLE admin_users ADD COLUMN IF NOT EXISTS password_hash TEXT;
+
 CREATE TABLE IF NOT EXISTS competitive_maps (
     id BIGSERIAL PRIMARY KEY,
     name TEXT NOT NULL UNIQUE,
@@ -12,10 +14,10 @@ CREATE TABLE IF NOT EXISTS competitive_maps (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-INSERT INTO admin_users (email, role) VALUES
-    ('admin@example.com', 'admin'),
-    ('analyst@example.com', 'analyst')
-ON CONFLICT (email) DO NOTHING;
+INSERT INTO admin_users (email, role, password_hash) VALUES
+    ('admin@example.com', 'admin', '$2a$10$PO.WVnpVbPFQ8oyVApdHc.j4drQ30c1vHxmfpKzIWG89vqkC3QgC2'),
+    ('analyst@example.com', 'analyst', '$2a$10$PO.WVnpVbPFQ8oyVApdHc.j4drQ30c1vHxmfpKzIWG89vqkC3QgC2')
+ON CONFLICT (email) DO UPDATE SET password_hash = EXCLUDED.password_hash;
 
 INSERT INTO competitive_maps (name, active) VALUES
     ('de_dust2', true),

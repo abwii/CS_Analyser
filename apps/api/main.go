@@ -71,8 +71,8 @@ func main() {
 		fmt.Fprintln(w, "ok")
 	})
 	mux.Handle("/upload", uploadHandler)
-	mux.HandleFunc("/auth/login", auth.NewLoginHandler(cfg.JWTSecret, cfg.AdminUsername, cfg.AdminPasswordHash, adminTokenTTL))
-	mux.HandleFunc("/veto/sessions", veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL))
+	mux.HandleFunc("/auth/login", admin.NewLoginHandler(pool, cfg.JWTSecret, adminTokenTTL))
+	mux.Handle("/veto/sessions", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL)))
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigin))
 	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
@@ -93,7 +93,7 @@ func whoamiHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	if err := json.NewEncoder(w).Encode(map[string]string{"username": claims.Subject}); err != nil {
+	if err := json.NewEncoder(w).Encode(map[string]string{"email": claims.Subject}); err != nil {
 		log.Printf("failed to write whoami response: %v", err)
 	}
 }
