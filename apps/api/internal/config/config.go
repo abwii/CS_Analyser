@@ -17,6 +17,7 @@ type Config struct {
 	AdminPasswordHash string
 	AllowedOrigin     string
 	DatabaseURL       string
+	S3ForcePathStyle  bool
 }
 
 func Load() (Config, error) {
@@ -32,6 +33,7 @@ func Load() (Config, error) {
 		AdminPasswordHash: os.Getenv("ADMIN_PASSWORD_HASH"),
 		AllowedOrigin:     os.Getenv("ALLOWED_ORIGIN"),
 		DatabaseURL:       os.Getenv("DATABASE_URL"),
+		S3ForcePathStyle:  os.Getenv("S3_FORCE_PATH_STYLE") == "true",
 	}
 
 	if cfg.Region == "" {

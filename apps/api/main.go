@@ -38,7 +38,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	s3Client := s3.NewFromConfig(awsCfg)
+	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
+		o.UsePathStyle = cfg.S3ForcePathStyle
+	})
 	uploader := manager.NewUploader(s3Client)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 
