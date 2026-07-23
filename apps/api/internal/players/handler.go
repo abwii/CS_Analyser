@@ -11,6 +11,10 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
+const maxPositions = 2000
+const minBoundsPadding = 50.0
+const boundsPaddingRatio = 0.05
+
 type Metrics struct {
 	KPR    float64 `json:"kpr"`
 	DPR    float64 `json:"dpr"`
@@ -35,6 +39,7 @@ type Map struct {
 type Point struct {
 	X float64 `json:"x"`
 	Y float64 `json:"y"`
+	Z float64 `json:"z"`
 }
 
 type Profile struct {
@@ -78,12 +83,21 @@ func NewProfileHandler(pool *pgxpool.Pool) http.HandlerFunc {
 			return
 		}
 
+		positions, err := loadPositions(ctx, pool, steamID)
+		if err != nil {
+			log.Printf("failed to load player positions: %v", err)
+			http.Error(w, "failed to load player profile", http.StatusInternalServerError)
+			return
+		}
+
+		playerName, mapName := findPlayerNameAndMap(ctx, pool, steamID)
+
 		profile := Profile{
 			PlayerID:   strconv.FormatInt(steamID, 10),
-			PlayerName: findPlayerName(ctx, pool, steamID),
+			PlayerName: playerName,
 			Metrics:    metrics,
-			Map:        Map{Bounds: WorldBounds{}},
-			Positions:  []Point{},
+			Map:        Map{Name: mapName, Bounds: computeBounds(positions)},
+			Positions:  positions,
 		}
 
 		w.Header().Set("Content-Type", "application/json")
@@ -93,32 +107,104 @@ func NewProfileHandler(pool *pgxpool.Pool) http.HandlerFunc {
 	}
 }
 
-func findPlayerName(ctx context.Context, pool *pgxpool.Pool, steamID int64) string {
+func loadPositions(ctx context.Context, pool *pgxpool.Pool, steamID int64) ([]Point, error) {
+	rows, err := pool.Query(
+		ctx,
+		"SELECT x, y, z FROM player_positions WHERE steamid = $1 ORDER BY id DESC LIMIT $2",
+		steamID,
+		maxPositions,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	positions := []Point{}
+	for rows.Next() {
+		var point Point
+		if err := rows.Scan(&point.X, &point.Y, &point.Z); err != nil {
+			return nil, err
+		}
+		positions = append(positions, point)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	return positions, nil
+}
+
+func computeBounds(positions []Point) WorldBounds {
+	if len(positions) == 0 {
+		return WorldBounds{}
+	}
+
+	minX, maxX := positions[0].X, positions[0].X
+	minY, maxY := positions[0].Y, positions[0].Y
+
+	for _, point := range positions[1:] {
+		if point.X < minX {
+			minX = point.X
+		}
+		if point.X > maxX {
+			maxX = point.X
+		}
+		if point.Y < minY {
+			minY = point.Y
+		}
+		if point.Y > maxY {
+			maxY = point.Y
+		}
+	}
+
+	padX := boundsPaddingRatio * (maxX - minX)
+	if padX < minBoundsPadding {
+		padX = minBoundsPadding
+	}
+	padY := boundsPaddingRatio * (maxY - minY)
+	if padY < minBoundsPadding {
+		padY = minBoundsPadding
+	}
+
+	return WorldBounds{
+		MinX: minX - padX,
+		MaxX: maxX + padX,
+		MinY: minY - padY,
+		MaxY: maxY + padY,
+	}
+}
+
+func findPlayerNameAndMap(ctx context.Context, pool *pgxpool.Pool, steamID int64) (string, string) {
 	fallback := fmt.Sprintf("Player %d", steamID)
 	filter := fmt.Sprintf(`[{"steamid": %d}]`, steamID)
 
-	var raw []byte
+	var roster []byte
+	var mapName *string
 	err := pool.QueryRow(
 		ctx,
-		"SELECT players FROM demos WHERE players @> $1::jsonb ORDER BY created_at DESC LIMIT 1",
+		"SELECT players, map_name FROM demos WHERE players @> $1::jsonb ORDER BY created_at DESC LIMIT 1",
 		filter,
-	).Scan(&raw)
+	).Scan(&roster, &mapName)
 	if err != nil {
-		return fallback
+		return fallback, ""
 	}
 
-	var roster []struct {
+	name := fallback
+	var entries []struct {
 		SteamID uint64 `json:"steamid"`
 		Name    string `json:"name"`
 	}
-	if err := json.Unmarshal(raw, &roster); err != nil {
-		return fallback
-	}
-
-	for _, entry := range roster {
-		if int64(entry.SteamID) == steamID && entry.Name != "" {
-			return entry.Name
+	if err := json.Unmarshal(roster, &entries); err == nil {
+		for _, entry := range entries {
+			if int64(entry.SteamID) == steamID && entry.Name != "" {
+				name = entry.Name
+				break
+			}
 		}
 	}
-	return fallback
+
+	if mapName == nil {
+		return name, ""
+	}
+	return name, *mapName
 }

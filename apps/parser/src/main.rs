@@ -59,6 +59,8 @@ async fn process(s3_client: &S3Client, pool: &PgPool, upload: &queue::UploadMess
         TICK_RATE,
     );
 
+    db::insert_positions(pool, demo_id, &defender_setup_positions).await?;
+
     println!(
         "processed {}/{}: {} players, {} defender setup samples",
         upload.bucket,
