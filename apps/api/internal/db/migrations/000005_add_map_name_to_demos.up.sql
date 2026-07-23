@@ -1,0 +1,1 @@
+ALTER TABLE demos ADD COLUMN map_name TEXT;

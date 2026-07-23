@@ -29,6 +29,10 @@ export function MapCanvas({
     setImage(null)
     setImageError(false)
 
+    if (!mapImageUrl) {
+      return
+    }
+
     const img = new Image()
     img.onload = () => setImage(img)
     img.onerror = () => setImageError(true)
@@ -42,7 +46,7 @@ export function MapCanvas({
 
   useEffect(() => {
     const canvas = canvasRef.current
-    if (!canvas || !image) {
+    if (!canvas) {
       return
     }
     const context = canvas.getContext('2d')
@@ -51,7 +55,9 @@ export function MapCanvas({
     }
 
     context.clearRect(0, 0, width, height)
-    context.drawImage(image, 0, 0, width, height)
+    if (image) {
+      context.drawImage(image, 0, 0, width, height)
+    }
 
     context.fillStyle = pointColor
     for (const point of points) {
@@ -64,7 +70,7 @@ export function MapCanvas({
 
   return (
     <div className="relative overflow-hidden rounded-lg border border-slate-200 bg-slate-100" style={{ width, height }}>
-      {!image && !imageError && (
+      {!image && !imageError && mapImageUrl && (
         <div className="absolute inset-0 flex items-center justify-center text-sm text-slate-400">Loading map</div>
       )}
       {imageError && (

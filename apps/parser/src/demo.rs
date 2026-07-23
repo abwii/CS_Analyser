@@ -41,6 +41,7 @@ pub struct DemoData {
     pub kills: Vec<KillEvent>,
     pub match_events: Vec<stats::MatchEvent>,
     pub positions: Vec<spatial::PositionEvent>,
+    pub map_name: Option<String>,
 }
 
 const TEAM_ROUNDS_TOTAL: &str = "team_rounds_total";
@@ -125,8 +126,9 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
     let round_starts = round_starts_from_events(&output.game_events);
     let match_events = extract_match_events(&output.game_events, &round_starts);
     let positions = extract_positions(&output, &round_starts);
+    let map_name = output.header.as_ref().and_then(|header| header.get("map_name").cloned());
 
-    Ok(DemoData { players, final_score, kills, match_events, positions })
+    Ok(DemoData { players, final_score, kills, match_events, positions, map_name })
 }
 
 fn round_starts_from_events(game_events: &[GameEvent]) -> Vec<i32> {
