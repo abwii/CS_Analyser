@@ -1,4 +1,4 @@
-CREATE TABLE IF NOT EXISTS player_stats (
+CREATE TABLE player_stats (
     id BIGSERIAL PRIMARY KEY,
     demo_id BIGINT NOT NULL REFERENCES demos (id) ON DELETE CASCADE,
     steamid BIGINT NOT NULL,
@@ -10,4 +10,4 @@ CREATE TABLE IF NOT EXISTS player_stats (
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS player_stats_demo_id_steamid_idx ON player_stats (demo_id, steamid);
+CREATE UNIQUE INDEX player_stats_demo_id_steamid_idx ON player_stats (demo_id, steamid);

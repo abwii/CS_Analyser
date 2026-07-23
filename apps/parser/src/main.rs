@@ -29,8 +29,6 @@ async fn main() -> Result<(), BoxError> {
         .connect(&cfg.database_url)
         .await?;
 
-    sqlx::migrate!("./migrations").run(&pool).await?;
-
     loop {
         let messages = queue::poll(&sqs_client, &cfg.sqs_queue_url).await?;
         for message in messages {
