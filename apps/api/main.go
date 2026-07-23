@@ -15,6 +15,7 @@ import (
 
 	"github.com/wbach/cs-analyser/apps/api/internal/admin"
 	"github.com/wbach/cs-analyser/apps/api/internal/auth"
+	"github.com/wbach/cs-analyser/apps/api/internal/cache"
 	"github.com/wbach/cs-analyser/apps/api/internal/config"
 	"github.com/wbach/cs-analyser/apps/api/internal/db"
 	"github.com/wbach/cs-analyser/apps/api/internal/players"
@@ -54,6 +55,12 @@ func main() {
 	}
 	defer pool.Close()
 
+	redisClient, err := cache.Connect(cfg.RedisURL)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer redisClient.Close()
+
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
 	vetoManager := veto.NewManager()
 
@@ -73,11 +80,11 @@ func main() {
 	mux.Handle("/upload", uploadHandler)
 	mux.HandleFunc("/auth/login", admin.NewLoginHandler(pool, cfg.JWTSecret, adminTokenTTL))
 	mux.Handle("/veto/sessions", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL)))
-	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigin))
-	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool))
+	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigins))
+	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool, redisClient))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
 
-	handler := auth.CORS(cfg.AllowedOrigin)(mux)
+	handler := auth.CORS(cfg.AllowedOrigins)(mux)
 
 	addr := ":" + cfg.Port
 	log.Printf("listening on %s", addr)
