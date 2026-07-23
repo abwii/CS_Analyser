@@ -18,7 +18,10 @@ async fn main() -> Result<(), BoxError> {
         .load()
         .await;
 
-    let s3_client = S3Client::new(&aws_cfg);
+    let s3_config = aws_sdk_s3::config::Builder::from(&aws_cfg)
+        .force_path_style(cfg.s3_force_path_style)
+        .build();
+    let s3_client = S3Client::from_conf(s3_config);
     let sqs_client = SqsClient::new(&aws_cfg);
 
     let pool = PgPoolOptions::new()
