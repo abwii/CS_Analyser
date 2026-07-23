@@ -8,32 +8,28 @@ import (
 )
 
 type Config struct {
-	Port              string
-	Region            string
-	Bucket            string
-	QueueURL          string
-	JWTSecret         []byte
-	AdminUsername     string
-	AdminPasswordHash string
-	AllowedOrigin     string
-	DatabaseURL       string
-	S3ForcePathStyle  bool
+	Port             string
+	Region           string
+	Bucket           string
+	QueueURL         string
+	JWTSecret        []byte
+	AllowedOrigin    string
+	DatabaseURL      string
+	S3ForcePathStyle bool
 }
 
 func Load() (Config, error) {
 	_ = godotenv.Load()
 
 	cfg := Config{
-		Port:              getEnv("PORT", "8080"),
-		Region:            os.Getenv("AWS_REGION"),
-		Bucket:            os.Getenv("S3_BUCKET"),
-		QueueURL:          os.Getenv("SQS_QUEUE_URL"),
-		JWTSecret:         []byte(os.Getenv("JWT_SECRET")),
-		AdminUsername:     os.Getenv("ADMIN_USERNAME"),
-		AdminPasswordHash: os.Getenv("ADMIN_PASSWORD_HASH"),
-		AllowedOrigin:     os.Getenv("ALLOWED_ORIGIN"),
-		DatabaseURL:       os.Getenv("DATABASE_URL"),
-		S3ForcePathStyle:  os.Getenv("S3_FORCE_PATH_STYLE") == "true",
+		Port:             getEnv("PORT", "8080"),
+		Region:           os.Getenv("AWS_REGION"),
+		Bucket:           os.Getenv("S3_BUCKET"),
+		QueueURL:         os.Getenv("SQS_QUEUE_URL"),
+		JWTSecret:        []byte(os.Getenv("JWT_SECRET")),
+		AllowedOrigin:    os.Getenv("ALLOWED_ORIGIN"),
+		DatabaseURL:      os.Getenv("DATABASE_URL"),
+		S3ForcePathStyle: os.Getenv("S3_FORCE_PATH_STYLE") == "true",
 	}
 
 	if cfg.Region == "" {
@@ -47,12 +43,6 @@ func Load() (Config, error) {
 	}
 	if len(cfg.JWTSecret) < 32 {
 		return Config{}, fmt.Errorf("JWT_SECRET is required and must be at least 32 characters")
-	}
-	if cfg.AdminUsername == "" {
-		return Config{}, fmt.Errorf("ADMIN_USERNAME is required")
-	}
-	if cfg.AdminPasswordHash == "" {
-		return Config{}, fmt.Errorf("ADMIN_PASSWORD_HASH is required")
 	}
 	if cfg.AllowedOrigin == "" {
 		return Config{}, fmt.Errorf("ALLOWED_ORIGIN is required")
