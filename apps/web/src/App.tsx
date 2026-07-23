@@ -1,6 +1,7 @@
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { HomePage } from './pages/HomePage'
 import AdminPage from './pages/AdminPage'
+import { LoginPage } from './pages/LoginPage'
 import { VetoPage } from './pages/VetoPage'
 import { PlayerProfilePage } from './pages/PlayerProfilePage'
 import { ComparisonPage } from './pages/ComparisonPage'
@@ -10,6 +11,7 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<HomePage />} />
+        <Route path="/login" element={<LoginPage />} />
         <Route path="/admin" element={<AdminPage />} />
         <Route path="/veto/:sessionId" element={<VetoPage />} />
         <Route path="/players/:playerId" element={<PlayerProfilePage />} />

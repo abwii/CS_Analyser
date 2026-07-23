@@ -6,7 +6,7 @@ export function withAuth<P extends object>(Component: ComponentType<P>): Compone
   return function ProtectedComponent(props: P) {
     const token = getToken()
     if (!isTokenValid(token)) {
-      return <Navigate to="/" replace />
+      return <Navigate to="/login" replace />
     }
     return <Component {...props} />
   }
