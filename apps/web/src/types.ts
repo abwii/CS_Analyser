@@ -118,3 +118,33 @@ export interface LoginResponse {
   expiresAt: string
 }
 
+export interface FaceitMapStats {
+  map: string
+  matchesPlayed: number
+  wins: number
+  winRate: number
+  avgKills: number
+  avgDeaths: number
+}
+
+export interface FaceitStats {
+  available: boolean
+  faceitNickname?: string
+  byMap: FaceitMapStats[]
+}
+
+export interface Demo {
+  id: string
+  mapName: string
+  winner: string
+  teamTScore: number
+  teamCtScore: number
+  playerCount: number
+  createdAt: string
+}
+
+export interface UploadResult {
+  bucket: string
+  key: string
+}
+

@@ -18,6 +18,7 @@ type Config struct {
 	DatabaseURL      string
 	RedisURL         string
 	S3ForcePathStyle bool
+	FaceitAPIKey     string
 }
 
 func Load() (Config, error) {
@@ -33,6 +34,7 @@ func Load() (Config, error) {
 		DatabaseURL:      os.Getenv("DATABASE_URL"),
 		RedisURL:         os.Getenv("REDIS_URL"),
 		S3ForcePathStyle: os.Getenv("S3_FORCE_PATH_STYLE") == "true",
+		FaceitAPIKey:     os.Getenv("FACEIT_API_KEY"),
 	}
 
 	if cfg.Region == "" {

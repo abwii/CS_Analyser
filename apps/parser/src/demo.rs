@@ -65,11 +65,11 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
         real_name_to_og_name.insert(real_name.clone(), friendly_name.clone());
     }
 
-    let settings = ParserInputs {
-        real_name_to_og_name,
+    let event_settings = ParserInputs {
+        real_name_to_og_name: real_name_to_og_name.clone(),
         wanted_players: vec![],
-        wanted_player_props: real_player_props,
-        wanted_other_props: vec![real_other_prop],
+        wanted_player_props: real_player_props.clone(),
+        wanted_other_props: vec![real_other_prop.clone()],
         wanted_prop_states: AHashMap::default(),
         wanted_events: vec![
             "player_death".to_string(),
@@ -85,12 +85,37 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
         list_props: false,
         only_convars: false,
         huffman_lookup_table: &huffman_lookup_table,
-        order_by_steamid: false,
+        order_by_steamid: true,
         fallback_bytes: None,
     };
 
-    let mut parser = Parser::new(settings, ParsingMode::Normal);
-    let output = parser.parse_demo(demo_bytes).map_err(|e| format!("{e}"))?;
+    let mut event_parser = Parser::new(event_settings, ParsingMode::Normal);
+    let output = event_parser.parse_demo(demo_bytes).map_err(|e| format!("{e}"))?;
+
+    // demoparser2 skips all per-tick entity collection whenever wanted_events is non-empty
+    // (second_pass/collect_data.rs: collect_entities returns early in that case), so per-tick
+    // player positions require a second pass over the same bytes with no events requested.
+    let position_settings = ParserInputs {
+        real_name_to_og_name,
+        wanted_players: vec![],
+        wanted_player_props: real_player_props,
+        wanted_other_props: vec![real_other_prop],
+        wanted_prop_states: AHashMap::default(),
+        wanted_events: vec![],
+        parse_ents: true,
+        wanted_ticks: vec![],
+        parse_projectiles: false,
+        parse_grenades: false,
+        only_header: true,
+        list_props: false,
+        only_convars: false,
+        huffman_lookup_table: &huffman_lookup_table,
+        order_by_steamid: true,
+        fallback_bytes: None,
+    };
+
+    let mut position_parser = Parser::new(position_settings, ParsingMode::Normal);
+    let position_output = position_parser.parse_demo(demo_bytes).map_err(|e| format!("{e}"))?;
 
     let mut players_by_steamid: AHashMap<u64, Player> = AHashMap::default();
     for meta in &output.player_md {
@@ -125,7 +150,7 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
 
     let round_starts = round_starts_from_events(&output.game_events);
     let match_events = extract_match_events(&output.game_events, &round_starts);
-    let positions = extract_positions(&output, &round_starts);
+    let positions = extract_positions(&position_output, &round_starts);
     let map_name = output.header.as_ref().and_then(|header| header.get("map_name").cloned());
 
     Ok(DemoData { players, final_score, kills, match_events, positions, map_name })
@@ -176,10 +201,7 @@ fn extract_match_events(game_events: &[GameEvent], round_starts: &[i32]) -> Vec<
                     Some(id) => id,
                     None => continue,
                 };
-                let victim_team = match field_i64(&event.fields, "user_team_num") {
-                    Some(team) => team as u8,
-                    None => continue,
-                };
+                let victim_team = field_i64(&event.fields, "user_team_num").map(|team| team as u8);
                 let attacker_id = field_u64(&event.fields, "attacker_steamid");
                 let attacker_team = field_i64(&event.fields, "attacker_team_num").map(|team| team as u8);
                 let assister_id = field_u64(&event.fields, "assister_steamid");
@@ -199,18 +221,12 @@ fn extract_match_events(game_events: &[GameEvent], round_starts: &[i32]) -> Vec<
                     Some(id) => id,
                     None => continue,
                 };
-                let attacker_team = match field_i64(&event.fields, "attacker_team_num") {
-                    Some(team) => team as u8,
-                    None => continue,
-                };
                 let victim_id = match field_u64(&event.fields, "user_steamid") {
                     Some(id) => id,
                     None => continue,
                 };
-                let victim_team = match field_i64(&event.fields, "user_team_num") {
-                    Some(team) => team as u8,
-                    None => continue,
-                };
+                let attacker_team = field_i64(&event.fields, "attacker_team_num").map(|team| team as u8);
+                let victim_team = field_i64(&event.fields, "user_team_num").map(|team| team as u8);
                 let damage = field_i64(&event.fields, "dmg_health").unwrap_or(0).max(0) as u32;
                 let round = round_number_for_tick(round_starts, event.tick);
 
@@ -357,7 +373,13 @@ fn field_bool(fields: &[EventField], name: &str) -> Option<bool> {
 }
 
 fn field_u64(fields: &[EventField], name: &str) -> Option<u64> {
-    field_i64(fields, name).map(|n| n as u64)
+    match field(fields, name)? {
+        Variant::I32(n) => Some(n as u64),
+        Variant::U32(n) => Some(n as u64),
+        Variant::U64(n) => Some(n),
+        Variant::String(s) => s.parse::<u64>().ok(),
+        _ => None,
+    }
 }
 
 fn field_i64(fields: &[EventField], name: &str) -> Option<i64> {
@@ -480,7 +502,7 @@ mod tests {
                 assert_eq!(kill.attacker_id, Some(111));
                 assert_eq!(kill.attacker_team, Some(2));
                 assert_eq!(kill.victim_id, 222);
-                assert_eq!(kill.victim_team, 3);
+                assert_eq!(kill.victim_team, Some(3));
                 assert_eq!(kill.assister_id, Some(333));
             }
             _ => panic!("expected a kill event"),
@@ -488,12 +510,56 @@ mod tests {
     }
 
     #[test]
-    fn extract_match_events_skips_kill_missing_victim_team() {
+    fn extract_match_events_builds_kill_when_steamids_are_encoded_as_strings() {
+        let round_starts = vec![0];
+        let events = vec![game_event(
+            "player_death",
+            64,
+            vec![
+                field_entry("attacker_steamid", Variant::String("111".to_string())),
+                field_entry("attacker_team_num", Variant::U32(2)),
+                field_entry("user_steamid", Variant::String("76561198158653120".to_string())),
+                field_entry("user_team_num", Variant::U32(3)),
+                field_entry("assister_steamid", Variant::String("333".to_string())),
+            ],
+        )];
+
+        let match_events = extract_match_events(&events, &round_starts);
+        assert_eq!(match_events.len(), 1);
+
+        match &match_events[0] {
+            stats::MatchEvent::Kill(kill) => {
+                assert_eq!(kill.attacker_id, Some(111));
+                assert_eq!(kill.victim_id, 76561198158653120);
+                assert_eq!(kill.assister_id, Some(333));
+            }
+            _ => panic!("expected a kill event"),
+        }
+    }
+
+    #[test]
+    fn extract_match_events_keeps_kill_missing_victim_team() {
         let events = vec![game_event(
             "player_death",
             64,
             vec![field_entry("user_steamid", Variant::U64(222))],
         )];
+
+        let match_events = extract_match_events(&events, &[0]);
+        assert_eq!(match_events.len(), 1);
+        match &match_events[0] {
+            stats::MatchEvent::Kill(kill) => {
+                assert_eq!(kill.victim_id, 222);
+                assert_eq!(kill.victim_team, None);
+                assert_eq!(kill.attacker_id, None);
+            }
+            _ => panic!("expected a kill event"),
+        }
+    }
+
+    #[test]
+    fn extract_match_events_skips_kill_missing_victim_id() {
+        let events = vec![game_event("player_death", 64, vec![])];
 
         assert_eq!(extract_match_events(&events, &[0]).len(), 0);
     }
@@ -518,9 +584,9 @@ mod tests {
             stats::MatchEvent::Damage(damage) => {
                 assert_eq!(damage.round, 1);
                 assert_eq!(damage.attacker_id, 111);
-                assert_eq!(damage.attacker_team, 2);
+                assert_eq!(damage.attacker_team, Some(2));
                 assert_eq!(damage.victim_id, 222);
-                assert_eq!(damage.victim_team, 3);
+                assert_eq!(damage.victim_team, Some(3));
                 assert_eq!(damage.damage, 27);
             }
             _ => panic!("expected a damage event"),

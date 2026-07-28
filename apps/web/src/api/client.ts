@@ -32,6 +32,20 @@ export async function apiSend<T>(path: string, method: string, body: unknown): P
   return response.json() as Promise<T>
 }
 
+export async function apiUpload<T>(path: string, file: File): Promise<T> {
+  const formData = new FormData()
+  formData.append('file', file)
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: 'POST',
+    headers: authHeaders(),
+    body: formData,
+  })
+  if (!response.ok) {
+    throw new Error(`request to ${path} failed with status ${response.status}`)
+  }
+  return response.json() as Promise<T>
+}
+
 export async function apiDelete(path: string): Promise<void> {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: 'DELETE',

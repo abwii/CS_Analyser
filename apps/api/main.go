@@ -18,6 +18,8 @@ import (
 	"github.com/wbach/cs-analyser/apps/api/internal/cache"
 	"github.com/wbach/cs-analyser/apps/api/internal/config"
 	"github.com/wbach/cs-analyser/apps/api/internal/db"
+	"github.com/wbach/cs-analyser/apps/api/internal/demos"
+	"github.com/wbach/cs-analyser/apps/api/internal/faceit"
 	"github.com/wbach/cs-analyser/apps/api/internal/players"
 	"github.com/wbach/cs-analyser/apps/api/internal/upload"
 	"github.com/wbach/cs-analyser/apps/api/internal/veto"
@@ -63,6 +65,7 @@ func main() {
 
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
 	vetoManager := veto.NewManager()
+	faceitClient := faceit.NewClient(cfg.FaceitAPIKey)
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/whoami", whoamiHandler)
@@ -82,6 +85,8 @@ func main() {
 	mux.Handle("/veto/sessions", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL)))
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigins))
 	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool, redisClient))
+	mux.HandleFunc("GET /players/{id}/faceit-stats", players.NewFaceitStatsHandler(faceitClient, redisClient))
+	mux.HandleFunc("GET /demos", demos.NewListHandler(pool))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
 
 	handler := auth.CORS(cfg.AllowedOrigins)(mux)

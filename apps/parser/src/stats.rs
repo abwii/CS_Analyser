@@ -6,7 +6,7 @@ pub struct KillEvent {
     pub attacker_id: Option<PlayerId>,
     pub attacker_team: Option<u8>,
     pub victim_id: PlayerId,
-    pub victim_team: u8,
+    pub victim_team: Option<u8>,
     pub assister_id: Option<PlayerId>,
 }
 
@@ -14,9 +14,9 @@ pub struct KillEvent {
 pub struct DamageEvent {
     pub round: u32,
     pub attacker_id: PlayerId,
-    pub attacker_team: u8,
+    pub attacker_team: Option<u8>,
     pub victim_id: PlayerId,
-    pub victim_team: u8,
+    pub victim_team: Option<u8>,
     pub damage: u32,
 }
 
@@ -149,9 +149,13 @@ fn was_traded(round_kills: &[&KillEvent], death: Option<&&KillEvent>) -> bool {
         Some(id) => id,
         None => return false,
     };
+    let victim_team = match death_event.victim_team {
+        Some(team) => team,
+        None => return false,
+    };
     round_kills
         .iter()
-        .any(|k| k.victim_id == killer_id && k.attacker_team == Some(death_event.victim_team))
+        .any(|k| k.victim_id == killer_id && k.attacker_team == Some(victim_team))
 }
 
 fn impact_score(kills: &[KillEvent], player_id: PlayerId, total_rounds: u32) -> f64 {
@@ -172,10 +176,14 @@ fn multi_kill_weight(kills_in_round: u32) -> u32 {
 fn average_damage_per_round(damages: &[DamageEvent], player_id: PlayerId, total_rounds: u32) -> f64 {
     let total_damage: u32 = damages
         .iter()
-        .filter(|d| d.attacker_id == player_id && d.attacker_team != d.victim_team)
+        .filter(|d| d.attacker_id == player_id && !is_teamkill(d.attacker_team, d.victim_team))
         .map(|d| d.damage)
         .sum();
     total_damage as f64 / total_rounds as f64
+}
+
+fn is_teamkill(attacker_team: Option<u8>, victim_team: Option<u8>) -> bool {
+    matches!((attacker_team, victim_team), (Some(a), Some(v)) if a == v)
 }
 
 pub fn normalize_player_stats(stats: &[PlayerStats]) -> Vec<NormalizedPlayerStats> {
@@ -228,7 +236,7 @@ mod tests {
                 attacker_id: Some(p1),
                 attacker_team: Some(TEAM_A),
                 victim_id: p2,
-                victim_team: TEAM_B,
+                victim_team: Some(TEAM_B),
                 assister_id: None,
             }),
             MatchEvent::RoundEnd(RoundEndEvent { round: 1 }),
@@ -237,7 +245,7 @@ mod tests {
                 attacker_id: Some(p2),
                 attacker_team: Some(TEAM_B),
                 victim_id: p1,
-                victim_team: TEAM_A,
+                victim_team: Some(TEAM_A),
                 assister_id: None,
             }),
             MatchEvent::RoundEnd(RoundEndEvent { round: 2 }),
@@ -265,7 +273,7 @@ mod tests {
                 attacker_id: Some(p1),
                 attacker_team: Some(TEAM_A),
                 victim_id: p2,
-                victim_team: TEAM_B,
+                victim_team: Some(TEAM_B),
                 assister_id: None,
             }),
             MatchEvent::Kill(KillEvent {
@@ -273,7 +281,7 @@ mod tests {
                 attacker_id: Some(p3),
                 attacker_team: Some(TEAM_B),
                 victim_id: p1,
-                victim_team: TEAM_A,
+                victim_team: Some(TEAM_A),
                 assister_id: None,
             }),
             MatchEvent::RoundEnd(RoundEndEvent { round: 1 }),
@@ -299,7 +307,7 @@ mod tests {
                 attacker_id: Some(p1),
                 attacker_team: Some(TEAM_A),
                 victim_id: p2,
-                victim_team: TEAM_B,
+                victim_team: Some(TEAM_B),
                 assister_id: None,
             }),
             MatchEvent::Kill(KillEvent {
@@ -307,7 +315,7 @@ mod tests {
                 attacker_id: Some(p1),
                 attacker_team: Some(TEAM_A),
                 victim_id: p3,
-                victim_team: TEAM_B,
+                victim_team: Some(TEAM_B),
                 assister_id: None,
             }),
             MatchEvent::RoundEnd(RoundEndEvent { round: 1 }),
@@ -330,17 +338,17 @@ mod tests {
             MatchEvent::Damage(DamageEvent {
                 round: 1,
                 attacker_id: p1,
-                attacker_team: TEAM_A,
+                attacker_team: Some(TEAM_A),
                 victim_id: p2,
-                victim_team: TEAM_B,
+                victim_team: Some(TEAM_B),
                 damage: 40,
             }),
             MatchEvent::Damage(DamageEvent {
                 round: 1,
                 attacker_id: p1,
-                attacker_team: TEAM_A,
+                attacker_team: Some(TEAM_A),
                 victim_id: p3,
-                victim_team: TEAM_A,
+                victim_team: Some(TEAM_A),
                 damage: 20,
             }),
             MatchEvent::RoundEnd(RoundEndEvent { round: 1 }),
@@ -351,6 +359,38 @@ mod tests {
         let p1_stats = stats.iter().find(|s| s.player_id == p1).unwrap();
 
         assert_eq!(p1_stats.adr, 20.0);
+    }
+
+    #[test]
+    fn kill_and_damage_events_with_unknown_team_still_count_towards_roster_and_kpr() {
+        let p1: PlayerId = 1;
+        let p2: PlayerId = 2;
+
+        let events = vec![
+            MatchEvent::Kill(KillEvent {
+                round: 1,
+                attacker_id: Some(p1),
+                attacker_team: None,
+                victim_id: p2,
+                victim_team: None,
+                assister_id: None,
+            }),
+            MatchEvent::Damage(DamageEvent {
+                round: 1,
+                attacker_id: p1,
+                attacker_team: None,
+                victim_id: p2,
+                victim_team: None,
+                damage: 30,
+            }),
+            MatchEvent::RoundEnd(RoundEndEvent { round: 1 }),
+        ];
+
+        let stats = compute_player_stats(&events);
+        let p1_stats = stats.iter().find(|s| s.player_id == p1).unwrap();
+
+        assert_eq!(p1_stats.kpr, 1.0);
+        assert_eq!(p1_stats.adr, 30.0);
     }
 
     #[test]

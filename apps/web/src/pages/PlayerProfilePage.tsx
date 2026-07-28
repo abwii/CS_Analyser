@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { fetchPlayerProfile } from '../api/players'
+import { FaceitStatsPanel } from '../components/FaceitStatsPanel'
 import { MapCanvas } from '../components/MapCanvas'
 import { MetricsDashboard } from '../components/MetricsDashboard'
 import type { PlayerProfile } from '../types'
@@ -60,6 +61,8 @@ export function PlayerProfilePage() {
           bounds={profile.map.bounds}
           points={profile.positions}
         />
+
+        <FaceitStatsPanel playerId={profile.playerId} />
       </div>
     </div>
   )
