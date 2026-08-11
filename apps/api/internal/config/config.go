@@ -19,6 +19,9 @@ type Config struct {
 	RedisURL         string
 	S3ForcePathStyle bool
 	FaceitAPIKey     string
+	PublicBaseURL    string
+	WebBaseURL       string
+	SteamAPIKey      string
 }
 
 func Load() (Config, error) {
@@ -35,6 +38,9 @@ func Load() (Config, error) {
 		RedisURL:         os.Getenv("REDIS_URL"),
 		S3ForcePathStyle: os.Getenv("S3_FORCE_PATH_STYLE") == "true",
 		FaceitAPIKey:     os.Getenv("FACEIT_API_KEY"),
+		PublicBaseURL:    getEnv("PUBLIC_BASE_URL", "http://localhost:8080"),
+		WebBaseURL:       getEnv("WEB_BASE_URL", "http://localhost:5173"),
+		SteamAPIKey:      os.Getenv("STEAM_API_KEY"),
 	}
 
 	if cfg.Region == "" {

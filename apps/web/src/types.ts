@@ -133,6 +133,12 @@ export interface FaceitStats {
   byMap: FaceitMapStats[]
 }
 
+export interface SteamSummary {
+  available: boolean
+  personaName?: string
+  avatarUrl?: string
+}
+
 export interface Demo {
   id: string
   mapName: string

@@ -1,12 +1,15 @@
 import { useState } from 'react'
-import { useNavigate } from 'react-router-dom'
-import { login } from '../api/auth'
+import { useNavigate, useSearchParams } from 'react-router-dom'
+import { login, steamLoginUrl } from '../api/auth'
 import { setToken } from '../lib/auth'
 
 export function LoginPage() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
-  const [error, setError] = useState<string | null>(null)
+  const [searchParams] = useSearchParams()
+  const [error, setError] = useState<string | null>(
+    searchParams.get('error') === 'steam' ? 'Steam login failed, please try again' : null,
+  )
   const [loading, setLoading] = useState(false)
   const navigate = useNavigate()
 
@@ -70,6 +73,16 @@ export function LoginPage() {
             {loading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+
+        <div className="mt-6 border-t border-slate-200 pt-6 text-center">
+          <p className="mb-3 text-xs text-slate-500">Just want to look up your own stats?</p>
+          <a
+            href={steamLoginUrl()}
+            className="inline-block w-full rounded-md border border-slate-300 px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+          >
+            Sign in with Steam
+          </a>
+        </div>
       </div>
     </div>
   )
