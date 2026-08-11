@@ -21,12 +21,14 @@ import (
 	"github.com/wbach/cs-analyser/apps/api/internal/demos"
 	"github.com/wbach/cs-analyser/apps/api/internal/faceit"
 	"github.com/wbach/cs-analyser/apps/api/internal/players"
+	"github.com/wbach/cs-analyser/apps/api/internal/steamauth"
 	"github.com/wbach/cs-analyser/apps/api/internal/upload"
 	"github.com/wbach/cs-analyser/apps/api/internal/veto"
 )
 
 const adminTokenTTL = 8 * time.Hour
 const vetoTokenTTL = 4 * time.Hour
+const steamTokenTTL = 30 * 24 * time.Hour
 
 func main() {
 	cfg, err := config.Load()
@@ -66,6 +68,8 @@ func main() {
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
 	vetoManager := veto.NewManager()
 	faceitClient := faceit.NewClient(cfg.FaceitAPIKey)
+	steamVerifier := steamauth.NewVerifier(http.DefaultClient)
+	steamSummaryClient := steamauth.NewSummaryClient(cfg.SteamAPIKey)
 
 	adminMux := http.NewServeMux()
 	adminMux.HandleFunc("/admin/whoami", whoamiHandler)
@@ -82,11 +86,14 @@ func main() {
 	})
 	mux.Handle("/upload", uploadHandler)
 	mux.HandleFunc("/auth/login", admin.NewLoginHandler(pool, cfg.JWTSecret, adminTokenTTL))
+	mux.HandleFunc("GET /auth/steam/login", steamauth.NewLoginHandler(cfg.PublicBaseURL+"/auth/steam/callback", cfg.PublicBaseURL))
+	mux.HandleFunc("GET /auth/steam/callback", steamauth.NewCallbackHandler(steamVerifier, cfg.JWTSecret, steamTokenTTL, cfg.WebBaseURL))
 	mux.Handle("/veto/sessions", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(veto.NewCreateSessionHandler(vetoManager, cfg.JWTSecret, vetoTokenTTL)))
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigins))
 	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool, redisClient))
 	mux.HandleFunc("GET /players/{id}/faceit-stats", players.NewFaceitStatsHandler(faceitClient, redisClient))
 	mux.HandleFunc("GET /demos", demos.NewListHandler(pool))
+	mux.HandleFunc("GET /players/{id}/steam-summary", steamauth.NewSummaryHandler(steamSummaryClient, redisClient))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
 
 	handler := auth.CORS(cfg.AllowedOrigins)(mux)

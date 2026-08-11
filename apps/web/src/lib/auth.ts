@@ -1,4 +1,5 @@
 export const TOKEN_STORAGE_KEY = 'cs_analyser_token'
+export const STEAM_TOKEN_STORAGE_KEY = 'cs_analyser_steam_token'
 
 export function getToken(): string | null {
   return localStorage.getItem(TOKEN_STORAGE_KEY)
@@ -10,6 +11,28 @@ export function setToken(token: string): void {
 
 export function clearToken(): void {
   localStorage.removeItem(TOKEN_STORAGE_KEY)
+}
+
+export function getSteamToken(): string | null {
+  return localStorage.getItem(STEAM_TOKEN_STORAGE_KEY)
+}
+
+export function setSteamToken(token: string): void {
+  localStorage.setItem(STEAM_TOKEN_STORAGE_KEY, token)
+}
+
+export function clearSteamToken(): void {
+  localStorage.removeItem(STEAM_TOKEN_STORAGE_KEY)
+}
+
+export function getSteamId(): string | null {
+  const token = getSteamToken()
+  if (!isTokenValid(token)) {
+    return null
+  }
+  const payload = decodeJwtPayload(token as string)
+  const steamId = payload?.steamId
+  return typeof steamId === 'string' ? steamId : null
 }
 
 function decodeJwtPayload(token: string): Record<string, unknown> | null {

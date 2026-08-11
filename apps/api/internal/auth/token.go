@@ -39,6 +39,21 @@ func NewVetoToken(secret []byte, sessionID string, team string, ttl time.Duratio
 	return token.SignedString(secret)
 }
 
+func NewSteamToken(secret []byte, steamID string, ttl time.Duration) (string, error) {
+	now := time.Now()
+	claims := Claims{
+		RegisteredClaims: jwt.RegisteredClaims{
+			Subject:   steamID,
+			IssuedAt:  jwt.NewNumericDate(now),
+			ExpiresAt: jwt.NewNumericDate(now.Add(ttl)),
+		},
+		Scope:   ScopePlayer,
+		SteamID: steamID,
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString(secret)
+}
+
 func Parse(secret []byte, tokenString string) (*Claims, error) {
 	claims := &Claims{}
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(t *jwt.Token) (interface{}, error) {
