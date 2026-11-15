@@ -81,6 +81,7 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
         wanted_ticks: vec![],
         parse_projectiles: false,
         parse_grenades: false,
+        parse_weapons: false,
         only_header: true,
         list_props: false,
         only_convars: false,
@@ -106,6 +107,7 @@ pub fn extract(demo_bytes: &[u8]) -> Result<DemoData, BoxError> {
         wanted_ticks: vec![],
         parse_projectiles: false,
         parse_grenades: false,
+        parse_weapons: false,
         only_header: true,
         list_props: false,
         only_convars: false,
@@ -332,6 +334,7 @@ fn varvec_len(data: &VarVec) -> usize {
         VarVec::XYZVec(v) => v.len(),
         VarVec::Stickers(v) => v.len(),
         VarVec::InputHistory(v) => v.len(),
+        VarVec::UserCmdSubtickMoves(v) => v.len(),
     }
 }
 

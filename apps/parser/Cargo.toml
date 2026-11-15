@@ -17,4 +17,4 @@ dotenvy = "0.15"
 [dependencies.demoparser2]
 package = "parser"
 git = "https://github.com/LaihoE/demoparser"
-rev = "ba39cc44cd5abfd7f34df2b3c0a7dd3630048311"
+rev = "dd71c09b32fb7ada7597bd83390a2ec3d3cd3812"
