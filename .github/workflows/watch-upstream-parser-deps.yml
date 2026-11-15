@@ -85,15 +85,12 @@ jobs:
         if: steps.check.outputs.changed == 'true' && steps.build.outcome == 'failure'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEMOPARSER_SHA: ${{ steps.check.outputs.demoparser_sha }}
+          GAMETRACKING_SHA: ${{ steps.check.outputs.gametracking_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
         run: |
+          body=$(printf 'Detecte automatiquement par le workflow `watch-upstream-parser-deps`.\n\n- demoparser2 (LaihoE/demoparser@main) : `%s`\n- GameTracking-CS2 (SteamDatabase/GameTracking-CS2@master) : `%s`\n\nLe build/test du parser Rust echoue avec cet etat upstream. Voir le run : %s\n\nCeci est une alerte, pas une action automatique : le service actuellement deploye n'\''est pas forcement impacte (le clone live ne se fait qu'\''au moment du build). A investiguer avant toute decision de rollback/maintenance.' "$DEMOPARSER_SHA" "$GAMETRACKING_SHA" "$RUN_URL")
           gh issue create \
-            --title "Build parser cassé suite a un changement upstream (demoparser2/GameTracking-CS2)" \
+            --title "Build parser casse suite a un changement upstream (demoparser2/GameTracking-CS2)" \
             --label "type:chore" --label rust --label infra \
-            --body "Détecté automatiquement par le workflow \`watch-upstream-parser-deps\`.
-
-- demoparser2 (LaihoE/demoparser@main) : \`${{ steps.check.outputs.demoparser_sha }}\`
-- GameTracking-CS2 (SteamDatabase/GameTracking-CS2@master) : \`${{ steps.check.outputs.gametracking_sha }}\`
-
-Le build/test du parser Rust échoue avec cet état upstream. Voir le run : ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
-
-Ceci est une alerte, pas une action automatique : le service actuellement déployé n'est pas forcément impacté (le clone live ne se fait qu'au moment du build). À investiguer avant toute décision de rollback/maintenance."
+            --body "$body"
