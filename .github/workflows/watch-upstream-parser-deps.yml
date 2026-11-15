@@ -1,0 +1,96 @@
+name: Watch upstream parser dependencies
+
+# Our Rust parser depends on two things we don't control and don't pin fully:
+# - LaihoE/demoparser (git rev pinned, but upstream fixes land there)
+# - SteamDatabase/GameTracking-CS2 (cloned live, unpinned, by demoparser2's own build.rs)
+# A CS2 game update usually shows up as new commits on one of these within hours.
+# This job polls both cheaply and only pays for a real build when something moved.
+on:
+  schedule:
+    - cron: "0 * * * *" # every hour
+  workflow_dispatch: {}
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  check-and-build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check upstream repos for new commits
+        id: check
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STATE_FILE=".github/upstream-watch-state.json"
+          demoparser_sha=$(gh api repos/LaihoE/demoparser/commits/main -q '.sha')
+          gametracking_sha=$(gh api repos/SteamDatabase/GameTracking-CS2/commits/master -q '.sha')
+
+          last_demoparser_sha=""
+          last_gametracking_sha=""
+          if [ -f "$STATE_FILE" ]; then
+            last_demoparser_sha=$(jq -r '.demoparser // ""' "$STATE_FILE")
+            last_gametracking_sha=$(jq -r '.gametracking // ""' "$STATE_FILE")
+          fi
+
+          changed=false
+          if [ "$demoparser_sha" != "$last_demoparser_sha" ] || [ "$gametracking_sha" != "$last_gametracking_sha" ]; then
+            changed=true
+          fi
+
+          echo "changed=$changed" >> "$GITHUB_OUTPUT"
+          echo "demoparser_sha=$demoparser_sha" >> "$GITHUB_OUTPUT"
+          echo "gametracking_sha=$gametracking_sha" >> "$GITHUB_OUTPUT"
+
+      - uses: dtolnay/rust-toolchain@stable
+        if: steps.check.outputs.changed == 'true'
+
+      - uses: arduino/setup-protoc@v3
+        if: steps.check.outputs.changed == 'true'
+        with:
+          version: "23.4"
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: Swatinem/rust-cache@v2
+        if: steps.check.outputs.changed == 'true'
+        with:
+          workspaces: apps/parser
+
+      - name: Build & test parser against the new upstream state
+        id: build
+        if: steps.check.outputs.changed == 'true'
+        working-directory: apps/parser
+        run: cargo test
+        continue-on-error: true
+
+      - name: Record the upstream state we just checked
+        if: steps.check.outputs.changed == 'true'
+        run: |
+          cat > .github/upstream-watch-state.json <<EOF
+          {
+            "demoparser": "${{ steps.check.outputs.demoparser_sha }}",
+            "gametracking": "${{ steps.check.outputs.gametracking_sha }}"
+          }
+          EOF
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add .github/upstream-watch-state.json
+          git diff --staged --quiet || git commit -m "chore: record upstream parser dependency state [skip ci]"
+          git push
+
+      - name: Open an issue if the build broke
+        if: steps.check.outputs.changed == 'true' && steps.build.outcome == 'failure'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          DEMOPARSER_SHA: ${{ steps.check.outputs.demoparser_sha }}
+          GAMETRACKING_SHA: ${{ steps.check.outputs.gametracking_sha }}
+          RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          body=$(printf 'Detecte automatiquement par le workflow `watch-upstream-parser-deps`.\n\n- demoparser2 (LaihoE/demoparser@main) : `%s`\n- GameTracking-CS2 (SteamDatabase/GameTracking-CS2@master) : `%s`\n\nLe build/test du parser Rust echoue avec cet etat upstream. Voir le run : %s\n\nCeci est une alerte, pas une action automatique : le service actuellement deploye n'\''est pas forcement impacte (le clone live ne se fait qu'\''au moment du build). A investiguer avant toute decision de rollback/maintenance.' "$DEMOPARSER_SHA" "$GAMETRACKING_SHA" "$RUN_URL")
+          gh issue create \
+            --title "Build parser casse suite a un changement upstream (demoparser2/GameTracking-CS2)" \
+            --label "type:chore" --label rust --label infra \
+            --body "$body"
