@@ -46,6 +46,7 @@ func main() {
 	s3Client := s3.NewFromConfig(awsCfg, func(o *s3.Options) {
 		o.UsePathStyle = cfg.S3ForcePathStyle
 	})
+	//nolint:staticcheck // feature/s3/transfermanager replacement is still pre-1.0 (v0.5.x); revisit once stable, see #59
 	uploader := manager.NewUploader(s3Client)
 	sqsClient := sqs.NewFromConfig(awsCfg)
 
