@@ -13,6 +13,10 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 ahash = "0.8"
 dotenvy = "0.15"
+zstd = "0.14.4"
+zip = { version = "9.8.1", default-features = false, features = ["deflate"] }
+sevenz-rust = "0.6.1"
+tempfile = "3.27.0"
 
 [dependencies.demoparser2]
 package = "parser"

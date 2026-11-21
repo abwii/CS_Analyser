@@ -3,7 +3,7 @@ use aws_sdk_s3::Client as S3Client;
 use aws_sdk_sqs::Client as SqsClient;
 use parser::config::Config;
 use parser::error::BoxError;
-use parser::{db, demo, queue, spatial, stats, storage};
+use parser::{db, demo, queue, spatial, stats, storage, validation};
 use sqlx::postgres::PgPoolOptions;
 use sqlx::PgPool;
 
@@ -44,7 +44,8 @@ async fn main() -> Result<(), BoxError> {
 }
 
 async fn process(s3_client: &S3Client, pool: &PgPool, upload: &queue::UploadMessage) -> Result<(), BoxError> {
-    let demo_bytes = storage::download(s3_client, &upload.bucket, &upload.key).await?;
+    let raw_bytes = storage::download(s3_client, &upload.bucket, &upload.key).await?;
+    let demo_bytes = validation::extract_demo_bytes(raw_bytes)?;
     let data = demo::extract(&demo_bytes)?;
 
     let demo_id = db::insert_demo(pool, &upload.bucket, &upload.key, &data).await?;
