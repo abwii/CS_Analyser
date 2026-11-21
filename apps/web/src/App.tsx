@@ -5,7 +5,7 @@ import { LoginPage } from './pages/LoginPage'
 import { VetoPage } from './pages/VetoPage'
 import { PlayerProfilePage } from './pages/PlayerProfilePage'
 import { ComparisonPage } from './pages/ComparisonPage'
-import { DemosPage } from './pages/DemosPage'
+import DemosPage from './pages/DemosPage'
 import { SteamCallbackPage } from './pages/SteamCallbackPage'
 import { NavBar } from './components/NavBar'
 

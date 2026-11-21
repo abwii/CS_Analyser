@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { fetchDemos, uploadDemo } from '../api/demos'
+import { withAuth } from '../hoc/withAuth'
 import type { Demo } from '../types'
 
 const pollIntervalMs = 3000
@@ -35,7 +36,7 @@ function groupByMap(demos: Demo[]): DemoGroup[] {
   return result
 }
 
-export function DemosPage() {
+function DemosPage() {
   const [demos, setDemos] = useState<Demo[]>([])
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
@@ -190,3 +191,7 @@ export function DemosPage() {
     </div>
   )
 }
+
+const ProtectedDemosPage = withAuth(DemosPage)
+
+export default ProtectedDemosPage
