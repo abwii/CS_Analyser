@@ -21,6 +21,7 @@ type fakeUploader struct {
 	uploaded []byte
 }
 
+//nolint:staticcheck // feature/s3/transfermanager replacement is still pre-1.0 (v0.5.x); revisit once stable, see #59
 func (f *fakeUploader) Upload(_ context.Context, input *s3.PutObjectInput, _ ...func(*manager.Uploader)) (*manager.UploadOutput, error) {
 	if f.err != nil {
 		return nil, f.err
