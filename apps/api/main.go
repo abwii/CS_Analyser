@@ -67,6 +67,8 @@ func main() {
 	defer redisClient.Close()
 
 	uploadHandler := upload.NewHandler(uploader, sqsClient, cfg.Bucket, cfg.QueueURL)
+	uploadRateLimiter := auth.NewRateLimiter(1, 3)
+	demosRateLimiter := auth.NewRateLimiter(5, 20)
 	vetoManager := veto.NewManager()
 	faceitClient := faceit.NewClient(cfg.FaceitAPIKey)
 	steamVerifier := steamauth.NewVerifier(http.DefaultClient)
@@ -85,7 +87,7 @@ func main() {
 	mux.HandleFunc("/health", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintln(w, "ok")
 	})
-	mux.Handle("/upload", uploadHandler)
+	mux.Handle("/upload", uploadRateLimiter.Middleware(auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(uploadHandler)))
 	mux.HandleFunc("/auth/login", admin.NewLoginHandler(pool, cfg.JWTSecret, adminTokenTTL))
 	mux.HandleFunc("GET /auth/steam/login", steamauth.NewLoginHandler(cfg.PublicBaseURL+"/auth/steam/callback", cfg.PublicBaseURL))
 	mux.HandleFunc("GET /auth/steam/callback", steamauth.NewCallbackHandler(steamVerifier, cfg.JWTSecret, steamTokenTTL, cfg.WebBaseURL))
@@ -93,7 +95,7 @@ func main() {
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigins))
 	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool, redisClient))
 	mux.HandleFunc("GET /players/{id}/faceit-stats", players.NewFaceitStatsHandler(faceitClient, redisClient))
-	mux.HandleFunc("GET /demos", demos.NewListHandler(pool))
+	mux.Handle("GET /demos", demosRateLimiter.Middleware(auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(demos.NewListHandler(pool))))
 	mux.HandleFunc("GET /players/{id}/steam-summary", steamauth.NewSummaryHandler(steamSummaryClient, redisClient))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
 
