@@ -95,6 +95,7 @@ func main() {
 	mux.HandleFunc("/veto/ws", veto.NewWebSocketHandler(vetoManager, cfg.JWTSecret, cfg.AllowedOrigins))
 	mux.HandleFunc("GET /players/{id}/profile", players.NewProfileHandler(pool, redisClient))
 	mux.HandleFunc("GET /players/{id}/faceit-stats", players.NewFaceitStatsHandler(faceitClient, redisClient))
+	mux.HandleFunc("GET /players/{id}/faceit-matches", players.NewRecentMatchesHandler(faceitClient, redisClient))
 	mux.Handle("GET /demos", demosRateLimiter.Middleware(auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(demos.NewListHandler(pool))))
 	mux.HandleFunc("GET /players/{id}/steam-summary", steamauth.NewSummaryHandler(steamSummaryClient, redisClient))
 	mux.Handle("/admin/", auth.RequireAuth(cfg.JWTSecret, auth.ScopeAdmin)(adminMux))
