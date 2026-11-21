@@ -64,7 +64,8 @@ pub async fn insert_positions(pool: &PgPool, demo_id: i64, positions: &[Position
     for position in positions {
         sqlx::query(
             "INSERT INTO player_positions (demo_id, steamid, round, tick, team, x, y, z)
-             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
+             VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+             ON CONFLICT (demo_id, steamid, round, tick) DO NOTHING",
         )
         .bind(demo_id)
         .bind(position.player_id as i64)
