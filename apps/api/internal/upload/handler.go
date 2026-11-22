@@ -76,22 +76,18 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		key, err = generateKey(part.FileName())
+		key, err = GenerateKey(part.FileName())
 		if err != nil {
 			part.Close()
 			http.Error(w, "failed to generate object key", http.StatusInternalServerError)
 			return
 		}
 
-		_, err = h.Uploader.Upload(r.Context(), &s3.PutObjectInput{
-			Bucket: aws.String(h.Bucket),
-			Key:    aws.String(key),
-			Body:   part,
-		})
+		_, err = h.PublishForParsing(r.Context(), key, part)
 		part.Close()
 		if err != nil {
-			log.Printf("s3 upload failed: %v", err)
-			http.Error(w, "failed to upload to s3", http.StatusInternalServerError)
+			log.Printf("%v", err)
+			http.Error(w, "failed to process upload", http.StatusInternalServerError)
 			return
 		}
 
@@ -103,24 +99,9 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	msg := Message{
-		Bucket: h.Bucket,
-		Key:    key,
-	}
-
-	body, err := json.Marshal(msg)
+	body, err := json.Marshal(Message{Bucket: h.Bucket, Key: key})
 	if err != nil {
 		http.Error(w, "failed to encode message", http.StatusInternalServerError)
-		return
-	}
-
-	_, err = h.SQSClient.SendMessage(r.Context(), &sqs.SendMessageInput{
-		QueueUrl:    aws.String(h.QueueURL),
-		MessageBody: aws.String(string(body)),
-	})
-	if err != nil {
-		log.Printf("sqs publish failed: %v", err)
-		http.Error(w, "failed to publish sqs message", http.StatusInternalServerError)
 		return
 	}
 
@@ -131,7 +112,38 @@ func (h *Handler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func generateKey(filename string) (string, error) {
+// PublishForParsing uploads body to S3 under key and publishes an SQS
+// message pointing the Rust worker at it. Shared by the multipart upload
+// endpoint and anything else that ingests a demo file (e.g. a FACEIT demo
+// URL downloaded server-side).
+func (h *Handler) PublishForParsing(ctx context.Context, key string, body io.Reader) (Message, error) {
+	_, err := h.Uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: aws.String(h.Bucket),
+		Key:    aws.String(key),
+		Body:   body,
+	})
+	if err != nil {
+		return Message{}, fmt.Errorf("s3 upload failed: %w", err)
+	}
+
+	msg := Message{Bucket: h.Bucket, Key: key}
+	msgBody, err := json.Marshal(msg)
+	if err != nil {
+		return Message{}, fmt.Errorf("failed to encode sqs message: %w", err)
+	}
+
+	_, err = h.SQSClient.SendMessage(ctx, &sqs.SendMessageInput{
+		QueueUrl:    aws.String(h.QueueURL),
+		MessageBody: aws.String(string(msgBody)),
+	})
+	if err != nil {
+		return Message{}, fmt.Errorf("sqs publish failed: %w", err)
+	}
+
+	return msg, nil
+}
+
+func GenerateKey(filename string) (string, error) {
 	buf := make([]byte, 16)
 	if _, err := rand.Read(buf); err != nil {
 		return "", err

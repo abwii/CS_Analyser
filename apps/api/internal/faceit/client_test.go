@@ -98,6 +98,39 @@ func TestMatchStatsParsesRoundStats(t *testing.T) {
 	}
 }
 
+func TestGetMatchParsesDemoURL(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/matches/m1" {
+			t.Fatalf("unexpected path: %s", r.URL.Path)
+		}
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"match_id":"m1","demo_url":["https://demos.faceit-cdn.net/m1.dem"]}`))
+	})
+
+	details, err := client.GetMatch(context.Background(), "m1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(details.DemoURL) != 1 || details.DemoURL[0] != "https://demos.faceit-cdn.net/m1.dem" {
+		t.Fatalf("unexpected demo url: %+v", details.DemoURL)
+	}
+}
+
+func TestGetMatchHandlesMissingDemoURL(t *testing.T) {
+	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"match_id":"m1","demo_url":[]}`))
+	})
+
+	details, err := client.GetMatch(context.Background(), "m1")
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(details.DemoURL) != 0 {
+		t.Fatalf("expected no demo url, got %+v", details.DemoURL)
+	}
+}
+
 func TestGetReturnsErrorOnServerError(t *testing.T) {
 	client := testClient(t, func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)

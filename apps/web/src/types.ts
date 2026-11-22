@@ -133,6 +133,18 @@ export interface FaceitStats {
   byMap: FaceitMapStats[]
 }
 
+export interface FaceitRecentMatch {
+  matchId: string
+  map: string
+  won: boolean
+}
+
+export interface FaceitRecentMatches {
+  available: boolean
+  faceitNickname?: string
+  matches: FaceitRecentMatch[]
+}
+
 export interface SteamSummary {
   available: boolean
   personaName?: string

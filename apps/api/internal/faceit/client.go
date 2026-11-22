@@ -58,6 +58,11 @@ type HistoryPlayer struct {
 	PlayerID string `json:"player_id"`
 }
 
+type MatchDetails struct {
+	MatchID string   `json:"match_id"`
+	DemoURL []string `json:"demo_url"`
+}
+
 type matchHistoryResponse struct {
 	Items []MatchHistoryItem `json:"items"`
 }
@@ -115,6 +120,17 @@ func (c *Client) MatchStats(ctx context.Context, matchID string) (*MatchStats, e
 		return nil, err
 	}
 	return &stats, nil
+}
+
+// GetMatch fetches match details, notably DemoURL. In practice FACEIT leaves
+// this empty for most matchmaking matches despite documenting the field, so
+// callers must treat an empty slice as "no demo available", not an error.
+func (c *Client) GetMatch(ctx context.Context, matchID string) (*MatchDetails, error) {
+	var details MatchDetails
+	if err := c.get(ctx, fmt.Sprintf("/matches/%s", matchID), nil, &details); err != nil {
+		return nil, err
+	}
+	return &details, nil
 }
 
 func (c *Client) get(ctx context.Context, path string, query url.Values, dest interface{}) error {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { fetchPlayerProfile } from '../api/players'
+import { FaceitRecentMatchesPanel } from '../components/FaceitRecentMatchesPanel'
 import { FaceitStatsPanel } from '../components/FaceitStatsPanel'
 import { MapCanvas } from '../components/MapCanvas'
 import { MetricsDashboard } from '../components/MetricsDashboard'
@@ -63,6 +64,8 @@ export function PlayerProfilePage() {
         />
 
         <FaceitStatsPanel playerId={profile.playerId} />
+
+        <FaceitRecentMatchesPanel playerId={profile.playerId} />
       </div>
     </div>
   )
